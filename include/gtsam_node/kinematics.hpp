@@ -1,13 +1,13 @@
 #pragma once
 
 #include <boost/array.hpp>
-#include <mhe_estimator/CanData.h>
-#include <mhe_estimator/ArticulatedAngles.h>
+#include <gtsam_node/CanData.h>
+#include <gtsam_node/ArticulatedAngles.h>
 #include "ackermann_msgs/AckermannDrive.h"
 #include <tf/tf.h>
 
 
-namespace mhe_estimator
+namespace gtsam_node
 {
     using namespace ast;
 
@@ -123,7 +123,7 @@ namespace mhe_estimator
         }
     }
 
-    void ParamsIn(mhe_estimator::CarParams& carParams,mhe_estimator::MheParams& mheParams,ast::ros::NodeHandle& nh)
+    void ParamsIn(gtsam_node::CarParams& carParams,gtsam_node::MheParams& mheParams,ast::ros::NodeHandle& nh)
     {
         std::string paramName;
 
