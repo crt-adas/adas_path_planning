@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<launch>       
+    <node name="mhe_estimator" pkg="mhe_estimator" type="mhe_estimator_node" required="true" output="screen">
+        <!-- MHE Window Lenghth in src/mhe_estimator_node -->
+        <param name="mheParam/mheActive"      type="bool" value="true"/>         <!-- MHE estimator activation control -->
+        <param name="mheParam/WeightedActive" type="bool" value="true"/>        <!-- Weighted fusion estimator activation control -->
+        
+        <param name="mheParam/loopRate"       type="double" value="50"/>
+        <param name="mheParam/perceptionGPS"  type="bool" value="true"/>
+        <!-- If "true" perception from GPS, if "false" Perception from Camera -->
+        <param name="mheParam/covarianceFromTopicStamp"  type="bool" value="false"/>  
+        <!-- If "true" MHE estimator receives covariances by ros topic, if "false" static covariance base of below noise variances
+             Note: Weighted Estimator always receives covariances base on variances below (by ros topic not impelimented yet)-->
+             
+        <param name="mheParam/noiseVariancePos"          type="double" value="0.1"/> 
+        <param name="mheParam/noiseVarianceTh"           type="double" value="0.02"/>    
+        <param name="mheParam/noiseVariancesteering"     type="double" value="0.2"/>      
+        <param name="mheParam/noiseVarianceTrailer1"     type="double" value="0.2"/>   
+        <param name="mheParam/noiseVarianceTrailer2"     type="double" value="0.02"/>   
+        <param name="mheParam/noiseVarianceLinearVel"    type="double" value="0.5"/>  
+        <param name="mheParam/noiseVarianceSteeringVel"  type="double" value="0.0"/> 
+
+
+
+        <param name="mheParam/WeightPos"       type="double" value="0.8"/> 
+        <param name="mheParam/WeightTh"        type="double" value="0.8"/> 
+        <param name="mheParam/WeightSteering"  type="double" value="0.5"/> 
+        <param name="mheParam/WeightTrailer1"  type="double" value="0.8"/> 
+        <param name="mheParam/WeightTrailer2"  type="double" value="0.8"/> 
+        
+
+        <param name="carParam/WagonNumbers"     type="double" value="1"/>       <!-- range: 0(car), 1, 2 -->
+        
+        <param name="carParam/L"   type="double" value="5.9"/>
+        <param name="carParam/L1"  type="double" value="4.17"/>
+        <param name="carParam/Lh1" type="double" value="1.83"/>
+        <param name="carParam/L2"  type="double" value="4.21"/>
+        <param name="carParam/Lh2" type="double" value="1.78"/>
+        <param name="carParam/steeringLimit"    type="double" value="0.79"/>       <!-- range: -value to value -->
+        <param name="carParam/trailer1Limit"    type="double" value="0.6"/>        <!-- range: -value to value -->
+        <param name="carParam/trailer2Limit"    type="double" value="0.6"/>        <!-- range: -value to value -->
+        <param name="carParam/LinearVelLimit"   type="double" value="4.0"/>        <!-- range: -value to value -->
+        <param name="carParam/SteeringVelLimit" type="double" value="0.8"/>        <!-- range: -value to value -->
+    
+        <param name="carParam/upperTh"   type="double" value="1.57"/>  <!-- relative to goal orientation -->
+        <param name="carParam/lowerTh"   type="double" value="-1.57"/> <!-- relative to goal orientation -->
+        <param name="carParam/upperX"    type="double" value="10.0"/>  <!-- relative to goal pose -->
+        <param name="carParam/lowerX"    type="double" value="-70.0"/>   <!-- relative to goal pose -->
+        <param name="carParam/upperY"    type="double" value="10.0"/>  <!-- relative to goal pose -->
+        <param name="carParam/lowerY"    type="double" value="-20.0"/>   <!-- relative to goal pose -->
+        <param name="carParam/respectSteeringLimits"  type="bool" value="true"/>    
+        <param name="carParam/moveGuidancePoint"  type="bool" value="true"/> 
+          
+        <!-- //false - gudance point on rear wheel axle tractor or wagon, 
+        true - guidance point on rear wheel axle tractor (if has wagons) or front wheel axle tractor (if has not wagons) -->
+
+
+
+    </node>
+
+</launch>
