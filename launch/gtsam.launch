@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <launch>       
-    <node name="mhe_estimator" pkg="mhe_estimator" type="mhe_estimator_node" required="true" output="screen">
+    <node name="gtsam_node" pkg="gtsam_node" type="gtsam_node" required="true" output="screen">
         <!-- MHE Window Lenghth in src/mhe_estimator_node -->
         <param name="mheParam/mheActive"      type="bool" value="true"/>         <!-- MHE estimator activation control -->
         <param name="mheParam/WeightedActive" type="bool" value="true"/>        <!-- Weighted fusion estimator activation control -->

@@ -127,112 +127,112 @@ namespace gtsam_node
     {
         std::string paramName;
 
-        paramName = "/mhe_estimator/mheParam/mheActive";
+        paramName = "/gtsam_node/mheParam/mheActive";
         singleParamIn(mheParams.mheActive,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightedActive";
+        paramName = "/gtsam_node/mheParam/WeightedActive";
         singleParamIn(mheParams.WeightedActive,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/loopRate";
+        paramName = "/gtsam_node/mheParam/loopRate";
         singleParamIn(mheParams.loopRate,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/perceptionGPS";
+        paramName = "/gtsam_node/mheParam/perceptionGPS";
         singleParamIn(mheParams.perceptionGPS,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/covarianceFromTopicStamp";
+        paramName = "/gtsam_node/mheParam/covarianceFromTopicStamp";
         singleParamIn(mheParams.covarianceFromTopicStamp,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVariancePos";
+        paramName = "/gtsam_node/mheParam/noiseVariancePos";
         singleParamIn(mheParams.noiseVariancePos,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVarianceTh";
+        paramName = "/gtsam_node/mheParam/noiseVarianceTh";
         singleParamIn(mheParams.noiseVarianceTh,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVariancesteering";
+        paramName = "/gtsam_node/mheParam/noiseVariancesteering";
         singleParamIn(mheParams.noiseVariancesteering,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVarianceTrailer1";
+        paramName = "/gtsam_node/mheParam/noiseVarianceTrailer1";
         singleParamIn(mheParams.noiseVarianceTrailer1,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVarianceTrailer2";
+        paramName = "/gtsam_node/mheParam/noiseVarianceTrailer2";
         singleParamIn(mheParams.noiseVarianceTrailer2,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVarianceLinearVel";
+        paramName = "/gtsam_node/mheParam/noiseVarianceLinearVel";
         singleParamIn(mheParams.noiseVarianceLinearVel,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/noiseVarianceSteeringVel";
+        paramName = "/gtsam_node/mheParam/noiseVarianceSteeringVel";
         singleParamIn(mheParams.noiseVarianceSteeringVel,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightPos";
+        paramName = "/gtsam_node/mheParam/WeightPos";
         singleParamIn(mheParams.WeightPos,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightTh";
+        paramName = "/gtsam_node/mheParam/WeightTh";
         singleParamIn(mheParams.WeightTh,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightSteering";
+        paramName = "/gtsam_node/mheParam/WeightSteering";
         singleParamIn(mheParams.WeightSteering,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightTrailer1";
+        paramName = "/gtsam_node/mheParam/WeightTrailer1";
         singleParamIn(mheParams.WeightTrailer1,paramName,nh);
 
-        paramName = "/mhe_estimator/mheParam/WeightTrailer2";
+        paramName = "/gtsam_node/mheParam/WeightTrailer2";
         singleParamIn(mheParams.WeightTrailer2,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/WagonNumbers";
+        paramName = "/gtsam_node/carParam/WagonNumbers";
         singleParamIn(carParams.TrailerNumber,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/L";
+        paramName = "/gtsam_node/carParam/L";
         singleParamIn(carParams.L,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/L1";
+        paramName = "/gtsam_node/carParam/L1";
         singleParamIn(carParams.L1,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/Lh1";
+        paramName = "/gtsam_node/carParam/Lh1";
         singleParamIn(carParams.Lh1,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/L2";
+        paramName = "/gtsam_node/carParam/L2";
         singleParamIn(carParams.L2,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/Lh2";
+        paramName = "/gtsam_node/carParam/Lh2";
         singleParamIn(carParams.Lh2,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/steeringLimit";
+        paramName = "/gtsam_node/carParam/steeringLimit";
         singleParamIn(carParams.steeringLimit,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/trailer1Limit";
+        paramName = "/gtsam_node/carParam/trailer1Limit";
         singleParamIn(carParams.trailer1Limit,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/trailer2Limit";
+        paramName = "/gtsam_node/carParam/trailer2Limit";
         singleParamIn(carParams.trailer2Limit,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/LinearVelLimit";
+        paramName = "/gtsam_node/carParam/LinearVelLimit";
         singleParamIn(carParams.LinearVelLimit,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/SteeringVelLimit";
+        paramName = "/gtsam_node/carParam/SteeringVelLimit";
         singleParamIn(carParams.SteeringVelLimit,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/moveGuidancePoint";
+        paramName = "/gtsam_node/carParam/moveGuidancePoint";
         singleParamIn(carParams.moveGuidancePoint,paramName,nh);
         
-        paramName = "/mhe_estimator/carParam/respectSteeringLimits";
+        paramName = "/gtsam_node/carParam/respectSteeringLimits";
         singleParamIn(carParams.respectSteeringLimits,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/upperTh";
+        paramName = "/gtsam_node/carParam/upperTh";
         singleParamIn(carParams.upperTh,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/lowerTh";
+        paramName = "/gtsam_node/carParam/lowerTh";
         singleParamIn(carParams.lowerTh,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/upperX";
+        paramName = "/gtsam_node/carParam/upperX";
         singleParamIn(carParams.upperX,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/lowerX";
+        paramName = "/gtsam_node/carParam/lowerX";
         singleParamIn(carParams.lowerX,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/upperY";
+        paramName = "/gtsam_node/carParam/upperY";
         singleParamIn(carParams.upperY,paramName,nh);
 
-        paramName = "/mhe_estimator/carParam/lowerY";
+        paramName = "/gtsam_node/carParam/lowerY";
         singleParamIn(carParams.lowerY,paramName,nh);
     
         ROS_INFO_STREAM("End of receiving parameters");
