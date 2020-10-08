@@ -84,14 +84,15 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 /*
        
         */
-        gtsam::Vector err(13);
+        gtsam::Vector err(13); 
+        err = Vector::Zero(13);
         err[9] = getPoly(p5[0]) - p5[1];
 
 
 
-        ROS_INFO_STREAM("\nY: " << p5[1] << "\n");
-        ROS_INFO_STREAM("\nx: " << p5[0] << "\n");
-        ROS_INFO_STREAM("\nf(x): " << getPoly(p5[0]) << "\n");
+        ROS_INFO_STREAM("\n x: " << p5[0] << "\n");
+        ROS_INFO_STREAM("\n y: " << p5[1] << "\n");
+        ROS_INFO_STREAM("\n f(x): " << getPoly(p5[0]) << "\n");
         ROS_INFO_STREAM("\nerrY: " << err[9] << "\n");
 
        
@@ -111,13 +112,9 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
         
-        
-        double errybyy;
+      
         double errybyx;
-
-        errybyy = (err[9] - errold[9])/(p5[1] - p5old[1]);
-
-        errybyx = (err[9] - errold[9])/(p5[0] - p5old[0]);
+        errybyx = ((0.007*pow(p5[0],6))-(0.216*pow(p5[0],5))+(1.47*pow(p5[0],4))-(3.232*pow(p5[0],3))-(1.515*pow(p5[0],2))+(9.08*p5[0])-2.492);
 
 
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
@@ -129,11 +126,10 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             1.0, 0.0, 0.0, 0.0, 0.0, 
-                                            errybyx, -1, 0.0, 0.0, 0.0, 
+                                            errybyx, 1.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
-        
         
          
 
@@ -274,7 +270,7 @@ int main(int argc, char **argv)
             
             
             NonlinearFactorGraph graph;
-
+ 
             gtsam::Vector polyPriorSigmas(8);
             polyPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
             auto priorPolyNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPriorSigmas);
