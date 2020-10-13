@@ -53,9 +53,18 @@
           
         <!-- //false - gudance point on rear wheel axle tractor or wagon, 
         true - guidance point on rear wheel axle tractor (if has wagons) or front wheel axle tractor (if has not wagons) -->
-
-
-
     </node>
+
+    <node pkg="tf"
+        type="static_transform_publisher"
+        name="link1_broadcaster"
+        args="0.1 0 0 0 0 0 base_link gtsam_frame 100" />
+    <node pkg="tf"
+        type="static_transform_publisher"
+        name="link2_broadcaster"
+        args="0.1 0 0 0 0 0 base_link map 100" />
+
+
+    <node name="rviz" pkg="rviz" type="rviz" required="false" args="-d $(find gtsam_node)/launch/config.rviz"  /> 
 
 </launch>
