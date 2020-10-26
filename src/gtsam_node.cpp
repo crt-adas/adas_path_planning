@@ -6,6 +6,7 @@
 #include <boost/numeric/odeint.hpp>
 #include <Eigen/Dense>
 #include <unistd.h>
+#include <math.h>
 
 #include <gtsam/config.h>
 #include <gtsam/base/VectorSpace.h>
@@ -38,6 +39,49 @@
 
 using namespace std;
 using namespace gtsam;
+
+//graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
+
+class CircleFactor: public NoiseModelFactor1<Vector5> {
+  // The factor will hold a measurement consisting of an (X,Y) location
+  // We could this with a Point2 but here we just use two doubles
+  Vector3 circle_;
+
+ public:
+  
+  typedef boost::shared_ptr<CircleFactor> shared_ptr;
+
+  CircleFactor(Key j, Vector3 circle, const SharedNoiseModel& model):
+    NoiseModelFactor1<Vector5>(model, j), circle_(circle) {}
+
+  virtual ~CircleFactor() {}
+
+  Vector evaluateError(const Vector5& po,
+                       boost::optional<Matrix&> H = boost::none) const override {
+
+    // The measurement function for a GPS-like measurement is simple:
+    // error_x = pose.x - measurement.x
+    // error_y = pose.y - measurement.y
+    // Consequently, the Jacobians are:
+    // [ derror_x/dx  derror_x/dy  derror_x/dtheta ] = [1 0 0]
+    // [ derror_y/dx  derror_y/dy  derror_y/dtheta ] = [0 1 0]
+
+    double err = 1/(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2));
+    
+    double ctrval = 0.1;
+    double jX = (ctrval*(2*circle_[0] - 2*po[0]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
+    double jY = (ctrval*(2*circle_[1] - 2*po[1]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
+   
+    if (H) (*H) = (Matrix(1, 5) << jX, jY, 0.0, 0.0, 0.0).finished();
+    return (Vector(1) << err*ctrval).finished(); 
+  }
+
+  gtsam::NonlinearFactor::shared_ptr clone() const override {
+    return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new CircleFactor(*this))); }
+
+};  // CircleFactor
+
 
 class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
   
@@ -81,6 +125,9 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
 
 
+
+
+
     Vector evaluateError(const Vector8& p8, const Vector5& p5,
         boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
     {
@@ -93,33 +140,23 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
         gtsam::Vector err(13); 
         err = Vector::Zero(13);
-
-        err[0] = p8[0] - mpoly_[0];
-        err[1] = p8[1] - mpoly_[1];
-        err[2] = p8[2] - mpoly_[2];
-        err[3] = p8[3] - mpoly_[3];
-        err[4] = p8[4] - mpoly_[4];
-        err[5] = p8[5] - mpoly_[5];
-        err[6] = p8[6] - mpoly_[6];
-        err[7] = p8[7] - mpoly_[7];
-        
-        err[8] = p5[0] - mpoint_[0];
-        err[9] = p5[1] - getPoly(mpoint_[0],mpoly_);
-        //err[9] = getPoly(p5[0],p8) - mpoint_[1];
-        //err[9] = getPoly(mpoint_[0]) - mpoint_[1];
-
-        err[10] = p5[2] - mpoint_[2];
-        err[11] = p5[3] - mpoint_[3];
-        err[12] = p5[4] - mpoint_[4];
-
-
         
 
+        err[0] =  p8[0] -  mpoly_[0] ;
+        err[1] =  p8[1] -  mpoly_[1] ;
+        err[2] =  p8[2] -  mpoly_[2] ;
+        err[3] =  p8[3] -  mpoly_[3] ;
+        err[4] =  p8[4] -  mpoly_[4] ;
+        err[5] =  p8[5] -  mpoly_[5] ;
+        err[6] =  p8[6] -  mpoly_[6] ;
+        err[7] =  p8[7] -  mpoly_[7] ;
 
-        ROS_INFO_STREAM("\n x: " << mpoint_[0] << "\n");
-        ROS_INFO_STREAM("\n y: " << p5[1] << "\n");
-        ROS_INFO_STREAM("\n f(x): " << getPoly(mpoint_[0],mpoly_) << "\n");
-        ROS_INFO_STREAM("\nerrY: " << err[9] << "\n");
+        err[8] =  p5[0] - mpoint_[0] ;
+        err[9] =  p5[1] - getPoly(mpoint_[0],mpoly_);
+        err[10] =  p5[2] - mpoint_[2] ;
+        err[11] =  p5[3] - mpoint_[3] ;
+        err[12] =  p5[4] - mpoint_[4] ;
+
         
         if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -128,16 +165,15 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,                                              
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
         
-        double errybyx;
-        errybyx = diffPoly(mpoint_[0],mpoly_);
-
+    //mpoly_[0], mpoly_[1], mpoly_[2], mpoly_[3], mpoly_[4], mpoly_[5], mpoly_[6], mpoly_[7],   
+        double errybyx = diffPoly(mpoint_[0],mpoly_);
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -145,29 +181,23 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,                                            
                                             1.0, 0.0, 0.0, 0.0, 0.0, 
-                                            errybyx, 1.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
         return err;
     }
-    /*
-    virtual bool equals(const gtsam::NonlinearFactor& expected, double tol = 1e-9) const override
-    {
-        const This* e = dynamic_cast<const This*>(&expected);
-        return e != nullptr && Base::equals(*e, tol) &&
-            gtsam::traits<gtsam::Vector8>::Equals(this->mpoly_, e->mpoly_, tol) &&
-            gtsam::traits<gtsam::Vector5>::Equals(this->mpoint_, e->mpoint_, tol);
-    }
-    */
-  
+   
     gtsam::NonlinearFactor::shared_ptr clone() const override {
       return boost::static_pointer_cast<gtsam::NonlinearFactor>(
         gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
 
 };  // PolyPointFactor
+
+
+
 
 
 double getPolyY(const double& x, const Vector8& p8) 
@@ -202,27 +232,25 @@ int main(int argc, char **argv)
     ::ros::Rate loop_rate(mheParams.loopRate);
     while(::ros::ok())
     {
-        
         auto now = ::ros::Time::now();
      
-       
-    
-        visualization_msgs::Marker points, pointsInit, PointOpt, line_strip;
-        PointOpt.header.frame_id = pointsInit.header.frame_id = points.header.frame_id = line_strip.header.frame_id = "/gtsam_frame";
-        points.header.stamp = line_strip.header.stamp = PointOpt.header.stamp = pointsInit.header.stamp = now;
-        pointsInit.ns = PointOpt.ns = points.ns = line_strip.ns = "points_and_lines";
-        pointsInit.action = PointOpt.action = points.action = line_strip.action = visualization_msgs::Marker::ADD;
-        pointsInit.pose.orientation.w = PointOpt.pose.orientation.w = points.pose.orientation.w = line_strip.pose.orientation.w = 1.0;
+        visualization_msgs::Marker points, pointsInit, PointOpt, line_strip, circleObst;
+        circleObst.header.frame_id = PointOpt.header.frame_id = pointsInit.header.frame_id = points.header.frame_id = line_strip.header.frame_id = "/gtsam_frame";
+        circleObst.header.stamp = points.header.stamp = line_strip.header.stamp = PointOpt.header.stamp = pointsInit.header.stamp = now;
+        circleObst.ns = pointsInit.ns = PointOpt.ns = points.ns = line_strip.ns = "points_and_lines";
+        circleObst.action = pointsInit.action = PointOpt.action = points.action = line_strip.action = visualization_msgs::Marker::ADD;
+        circleObst.pose.orientation.w = pointsInit.pose.orientation.w = PointOpt.pose.orientation.w = points.pose.orientation.w = line_strip.pose.orientation.w = 1.0;
 
         points.id = 0;
         line_strip.id = 1;
         pointsInit.id = 2;
         PointOpt.id = 3;
-
+        circleObst.id = 4;
         points.type = visualization_msgs::Marker::POINTS;
         line_strip.type = visualization_msgs::Marker::LINE_STRIP;
         pointsInit.type = visualization_msgs::Marker::POINTS;
         PointOpt.type = visualization_msgs::Marker::POINTS;
+        circleObst.type = visualization_msgs::Marker::LINE_STRIP;
         // POINTS markers use x and y scale for width/height respectively
         points.scale.x = 0.05;
         points.scale.y = 0.05;
@@ -244,10 +272,18 @@ int main(int argc, char **argv)
         line_strip.color.b = 1.0;
         line_strip.color.a = 1.0;
 
-        line_strip.scale.x = 0.05;
-        line_strip.scale.y = 0.05;
+        line_strip.scale.x = 0.02;
+        line_strip.scale.y = 0.02;
         line_strip.scale.z = 0.0;
         
+        circleObst.scale.x = 0.01;
+        circleObst.scale.y = 0.01;
+        circleObst.scale.z = 0.0;
+        circleObst.color.a = 1.0;
+
+        circleObst.color.b = 1.0;
+        circleObst.color.g = 1.0;
+
         pointsInit.color.r = 1.0;
         pointsInit.color.a = 1.0;
 
@@ -255,12 +291,8 @@ int main(int argc, char **argv)
         PointOpt.color.b = 1.0;
         PointOpt.color.a = 1.0;
 
-        
-
-        
         NonlinearFactorGraph graph;
 
-    
         //gtsam::Vector polyPriorSigmas(8);
         //polyPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         //auto priorPolyNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPriorSigmas);
@@ -268,18 +300,12 @@ int main(int argc, char **argv)
         gtsam::Vector polyParams(8);
         polyParams << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500; // order x^7 -> x^0 
         //graph.addPrior(0, polyParams, priorPolyNoise);
-        
-
+    
         gtsam::Vector polyPointSigmas(13);
-        polyPointSigmas <<1.0, 1.0, 1.0, 2.0, 2.0, 3.0, 2.0, 3.0 ,0.0, 0.5, 0.0, 0.0, 0.0;
-        //polyPointSigmas <<0.01, 0.1, 0.5, 1.0, 1.0, 3.0, 2.0, 1.0 ,0.0, 0.5, 0.0, 0.0, 0.0;
-        //pointPolySigmas <<0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ,0.0, 0.3, 0.0, 0.0, 0.0;
+        
+        polyPointSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
         auto polyPointNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPointSigmas);
         
-
-
-
-
         geometry_msgs::Point pois;
 
         gtsam::Vector po1(5);
@@ -301,7 +327,7 @@ int main(int argc, char **argv)
         points.points.push_back(pois);
 
         gtsam::Vector po4(5);
-        po4 << 1.0, 2.5, 0.0, 0.0, 0.0;
+        po4 << 1.0, 3.0, 0.0, 0.0, 0.0;
         pois.x = po4[0];
         pois.y = po4[1];
         points.points.push_back(pois);
@@ -312,17 +338,20 @@ int main(int argc, char **argv)
         pois.y = po5[1];
         points.points.push_back(pois);
 
-
         graph.emplace_shared<PolyPointFactor>(0, 1, polyParams, po1, polyPointNoise);
         graph.emplace_shared<PolyPointFactor>(0, 2, polyParams, po2, polyPointNoise);
         graph.emplace_shared<PolyPointFactor>(0, 3, polyParams, po3, polyPointNoise);
         graph.emplace_shared<PolyPointFactor>(0, 4, polyParams, po4, polyPointNoise);
         graph.emplace_shared<PolyPointFactor>(0, 5, polyParams, po5, polyPointNoise);
+        
+        auto circleNoise = noiseModel::Diagonal::Sigmas(Vector1(0.0));  // 10cm std on x,y
+        gtsam::Vector circle4(3); //x, y, r
+        circle4 << 0.8, 2.6, 0.3;
 
-
+        graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
+        graph.emplace_shared<CircleFactor>(3, circle4, circleNoise);
+        graph.emplace_shared<CircleFactor>(2, circle4, circleNoise);
         graph.print("\nFactor Graph:\n");  // print
-
-
 
         Values initialEstimate;
         geometry_msgs::Point poisInit;
@@ -348,20 +377,18 @@ int main(int argc, char **argv)
         poisInit.y = po3init[1];
         pointsInit.points.push_back(poisInit);
         
-
         gtsam::Vector po4init(5);
         po4init << 1.2, 2.8, 0.0, 0.0, 0.0;
+        
         poisInit.x = po4init[0];
         poisInit.y = po4init[1];
         pointsInit.points.push_back(poisInit);
-
 
         gtsam::Vector po5init(5);
         po5init << 1.8, 5.0, 0.0, 0.0, 0.0;
         poisInit.x = po5init[0];
         poisInit.y = po5init[1];
         pointsInit.points.push_back(poisInit);
-
 
         initialEstimate.insert(0, po0init);
         initialEstimate.insert(1, po1init);
@@ -400,8 +427,6 @@ int main(int argc, char **argv)
         poisOpt.y = x5_update[1];
         PointOpt.points.push_back(poisOpt);
         
-
-    
         Marginals marginals(graph, result);
         cout << "polynomial covariance:\n" << marginals.marginalCovariance(0) << endl;
         cout << "p1 covariance:\n" << marginals.marginalCovariance(1) << endl;
@@ -419,18 +444,24 @@ int main(int argc, char **argv)
         p.z = 0;
         line_strip.points.push_back(p);
         }
+        for (double i = 0; i < (2 * M_PI); i = i + (M_PI/50))
+        {
+        geometry_msgs::Point p;
+        p.x = circle4[2] * cos(i) + circle4[0];
+        p.y = circle4[2] * sin(i) + circle4[1];
+        p.z = 0;
+        circleObst.points.push_back(p);
+        }
+        marker_pub.publish(circleObst);
         marker_pub.publish(line_strip);
         marker_pub.publish(points);
         marker_pub.publish(pointsInit);
         marker_pub.publish(PointOpt);
 
         /////*************************************************////////////////
-        
         auto loopTime =  ::ros::Time::now() - now;
         ROS_INFO_STREAM("loop time" << loopTime.toSec());
 
-        
-       
         ::ros::spinOnce();
         loop_rate.sleep();
 
@@ -438,3 +469,81 @@ int main(int argc, char **argv)
 
     return 0;
 }
+
+
+
+/*
+
+    Vector evaluateError(const Vector8& p8, const Vector5& p5,
+        boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
+    {
+        // The measurement function for a GPS-like measurement is simple:
+        // error_x = pose.x - measurement.x
+        // error_y = pose.y - measurement.y
+        // Consequently, the Jacobians are:
+        // [ derror_x/dx  derror_x/dy  derror_x/dtheta ] = [1 0 0]
+        // [ derror_y/dx  derror_y/dy  derror_y/dtheta ] = [0 1 0]
+
+        gtsam::Vector err(13); 
+        err = Vector::Zero(13);
+        
+
+        err[0] =  p8[0] -  mpoly_[0] ;
+        err[1] =  p8[1] -  mpoly_[1] ;
+        err[2] =  p8[2] -  mpoly_[2] ;
+        err[3] =  p8[3] -  mpoly_[3] ;
+        err[4] =  p8[4] -  mpoly_[4] ;
+        err[5] =  p8[5] -  mpoly_[5] ;
+        err[6] =  p8[6] -  mpoly_[6] ;
+        err[7] =  p8[7] -  mpoly_[7] ;
+
+        err[8] =  p5[0] - mpoint_[0] ;
+        err[9] =  p5[1] - getPoly(mpoint_[0],mpoly_);
+        err[10] =  p5[2] - mpoint_[2] ;
+        err[11] =  p5[3] - mpoint_[3] ;
+        err[12] =  p5[4] - mpoint_[4] ;
+
+        
+        if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
+        
+        double errybyx;
+        errybyx = diffPoly(mpoint_[0],mpoly_);
+        
+
+
+        if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,                                            
+                                            1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            errybyx, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0).finished();
+        return err;
+    }
+   
+    gtsam::NonlinearFactor::shared_ptr clone() const override {
+      return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
+
+};  // PolyPointFactor
+
+
+*/
