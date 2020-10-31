@@ -40,7 +40,6 @@
 using namespace std;
 using namespace gtsam;
 
-//graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
 
 class CircleFactor: public NoiseModelFactor1<Vector5> {
   // The factor will hold a measurement consisting of an (X,Y) location
@@ -91,14 +90,13 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
     Vector8 mpoly_;
     Vector5 mpoint_;
-
+    double j_;
   public:
-        /// shorthand for a smart pointer to a factor
+        
     typedef boost::shared_ptr<PolyPointFactor> shared_ptr;
 
-        // The constructor requires the variable key, the nodes, and the noise model
     PolyPointFactor(Key i, Key j, Vector8 mpoly, Vector5 mpoint, const SharedNoiseModel& model)
-        : Base(model, i, j), mpoly_(mpoly), mpoint_(mpoint) {}
+        : Base(model, i, j), mpoly_(mpoly), mpoint_(mpoint),j_(j) {}
 
     virtual ~PolyPointFactor() 
     {}
@@ -108,11 +106,43 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         double y;
         y = (p8[0]*pow(x,7))+(p8[1]*pow(x,6))+(p8[2]*pow(x,5))+(p8[3]*pow(x,4))+(p8[4]*pow(x,3))+(p8[5]*pow(x,2))+(p8[6]*x)+p8[7];
 
-        //y = (0.001*pow(x,7))-(0.036*pow(x,6))+(0.294*pow(x,5))-(0.808*pow(x,4))-(0.505*pow(x,3))+(4.54*pow(x,2))-(2.492*x)+ 1.500;
+        
         return y; // order p0 x^7 -> p7 x^1 
     }
-
-
+    
+    double getPolyParam(const double& x, const double& y, const Vector8& p8, const int& pNo) const 
+    {
+        double pPrim;
+        switch (pNo) 
+        {
+        case 0:
+          pPrim = (y -(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,7)  ;
+          break;
+        case 1:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,6);
+          break;
+        case 2:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,5);
+          break;
+        case 3:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,4);
+          break;
+        case 4:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,3);
+          break;
+        case 5:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[6]*x)-p8[7])/pow(x,2);
+          break;
+        case 6:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-p8[7])/x;
+          break;
+        case 7:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x));
+          break;  
+      }
+        
+        return pPrim; // order p0 x^7 -> p7 x^1 
+    }
 
     double diffPoly(const double& x, const Vector8& p8) const 
     {
@@ -122,42 +152,41 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         return y; // order p0 x^7 -> p7 x^1 
     }  
 
-
-
-
-
-
-
-    Vector evaluateError(const Vector8& p8, const Vector5& p5,
+     Vector evaluateError(const Vector8& p8, const Vector5& p5,
         boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
     {
-        // The measurement function for a GPS-like measurement is simple:
-        // error_x = pose.x - measurement.x
-        // error_y = pose.y - measurement.y
-        // Consequently, the Jacobians are:
-        // [ derror_x/dx  derror_x/dy  derror_x/dtheta ] = [1 0 0]
-        // [ derror_y/dx  derror_y/dy  derror_y/dtheta ] = [0 1 0]
-
+        
         gtsam::Vector err(13); 
         err = Vector::Zero(13);
         
-
-        err[0] =  p8[0] -  mpoly_[0] ;
-        err[1] =  p8[1] -  mpoly_[1] ;
-        err[2] =  p8[2] -  mpoly_[2] ;
-        err[3] =  p8[3] -  mpoly_[3] ;
-        err[4] =  p8[4] -  mpoly_[4] ;
-        err[5] =  p8[5] -  mpoly_[5] ;
-        err[6] =  p8[6] -  mpoly_[6] ;
-        err[7] =  p8[7] -  mpoly_[7] ;
+        err[0] =  p8[0] - p8[0] ;
+        err[1] =  p8[1] - p8[1] ;
+        err[2] =  p8[2] - p8[2] ;
+        err[3] =  p8[3] - p8[3] ;
+        err[4] =  p8[4] - p8[4] ;
+        err[5] =  p8[5] - p8[5] ;
+        err[6] =  p8[6] - p8[6] ;
+        err[7] =  p8[7] - p8[7] ;
 
         err[8] =  p5[0] - mpoint_[0] ;
-        err[9] =  p5[1] - getPoly(mpoint_[0],mpoly_);
+        err[9] =  p5[1] - getPoly(p5[0],p8);
         err[10] =  p5[2] - mpoint_[2] ;
         err[11] =  p5[3] - mpoint_[3] ;
         err[12] =  p5[4] - mpoint_[4] ;
 
+        if (j_ == 1)
+        {
+          ROS_INFO_STREAM("p5[0]: "<< p5[0] <<"");
+          ROS_INFO_STREAM("mpoint_[0]: "<< mpoint_[0] <<"");
+          ROS_INFO_STREAM("p5[1]: "<< p5[1] <<"");
+          ROS_INFO_STREAM("mpoint_[1]: "<< mpoint_[1] <<""); 
+          ROS_INFO_STREAM("getPoly-p5[0]: "<< getPoly(p5[0],p8) <<""); 
+          ROS_INFO_STREAM("getPoly-mpoint_[0]: "<< getPoly(mpoint_[0],p8) <<"");   
+          ROS_INFO_STREAM("err: "<<  err[9] <<"");
+          ROS_INFO_STREAM(".\n");
+        }
         
+
         if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -167,13 +196,16 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,                                              
+                                            -pow(p5[0],7), -pow(p5[0],6), -pow(p5[0],5), -pow(p5[0],4), -pow(p5[0],3), -pow(p5[0],2), -p5[0], -1.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
         
-    //mpoly_[0], mpoly_[1], mpoly_[2], mpoly_[3], mpoly_[4], mpoly_[5], mpoly_[6], mpoly_[7],   
-        double errybyx = diffPoly(mpoint_[0],mpoly_);
+  
+     //-pow(p5[0],7), -pow(p5[0],6), -pow(p5[0],5), -pow(p5[0],4), -pow(p5[0],3), -pow(p5[0],2), -p5[0], -1.0,
+
+
+        double errYx = diffPoly(p5[0],p8);
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -183,7 +215,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,                                            
                                             1.0, 0.0, 0.0, 0.0, 0.0, 
-                                            0.0, 1.0, 0.0, 0.0, 0.0,
+                                            (-1)*errYx, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
@@ -195,6 +227,8 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
 
 };  // PolyPointFactor
+
+
 
 
 
@@ -293,29 +327,31 @@ int main(int argc, char **argv)
 
         NonlinearFactorGraph graph;
 
-        //gtsam::Vector polyPriorSigmas(8);
-        //polyPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
-        //auto priorPolyNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPriorSigmas);
+        gtsam::Vector polyPriorSigmas(8);
+        polyPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
+        auto priorPolyNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPriorSigmas);
 
         gtsam::Vector polyParams(8);
         polyParams << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500; // order x^7 -> x^0 
-        //graph.addPrior(0, polyParams, priorPolyNoise);
-    
+        graph.addPrior(0, polyParams, priorPolyNoise);
+   
         gtsam::Vector polyPointSigmas(13);
         
-        polyPointSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+        polyPointSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
         auto polyPointNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPointSigmas);
         
         geometry_msgs::Point pois;
 
         gtsam::Vector po1(5);
         po1 << -1.0, 8.0, 0.0, 0.0, 0.0;
+        //graph.addPrior(1, po1, priorPolyNoise);
         pois.x = po1[0];
         pois.y = po1[1];
         points.points.push_back(pois);
         
         gtsam::Vector po2(5);
         po2 << -0.5, 3.8, 0.0, 0.0, 0.0;
+        //graph.addPrior(2, po2, priorPolyNoise);
         pois.x = po2[0];
         pois.y = po2[1];
         points.points.push_back(pois);
@@ -327,7 +363,7 @@ int main(int argc, char **argv)
         points.points.push_back(pois);
 
         gtsam::Vector po4(5);
-        po4 << 1.0, 3.0, 0.0, 0.0, 0.0;
+        po4 << 1.2, 3.0, 0.0, 0.0, 0.0;
         pois.x = po4[0];
         pois.y = po4[1];
         points.points.push_back(pois);
@@ -338,19 +374,21 @@ int main(int argc, char **argv)
         pois.y = po5[1];
         points.points.push_back(pois);
 
-        graph.emplace_shared<PolyPointFactor>(0, 1, polyParams, po1, polyPointNoise);
-        graph.emplace_shared<PolyPointFactor>(0, 2, polyParams, po2, polyPointNoise);
-        graph.emplace_shared<PolyPointFactor>(0, 3, polyParams, po3, polyPointNoise);
-        graph.emplace_shared<PolyPointFactor>(0, 4, polyParams, po4, polyPointNoise);
-        graph.emplace_shared<PolyPointFactor>(0, 5, polyParams, po5, polyPointNoise);
+        graph.push_back(boost::make_shared<PolyPointFactor>(0, 1, polyParams, po1, polyPointNoise));
+        graph.push_back(boost::make_shared<PolyPointFactor>(0, 2, polyParams, po2, polyPointNoise));
+        graph.push_back(boost::make_shared<PolyPointFactor>(0, 3, polyParams, po3, polyPointNoise));
+        graph.push_back(boost::make_shared<PolyPointFactor>(0, 4, polyParams, po4, polyPointNoise));
+        graph.push_back(boost::make_shared<PolyPointFactor>(0, 5, polyParams, po5, polyPointNoise));
         
+        
+       
         auto circleNoise = noiseModel::Diagonal::Sigmas(Vector1(0.0));  // 10cm std on x,y
         gtsam::Vector circle4(3); //x, y, r
         circle4 << 0.8, 2.6, 0.3;
 
-        graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
-        graph.emplace_shared<CircleFactor>(3, circle4, circleNoise);
-        graph.emplace_shared<CircleFactor>(2, circle4, circleNoise);
+        //graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
+        //graph.emplace_shared<CircleFactor>(3, circle4, circleNoise);
+        //graph.emplace_shared<CircleFactor>(2, circle4, circleNoise);
         graph.print("\nFactor Graph:\n");  // print
 
         Values initialEstimate;
@@ -474,6 +512,8 @@ int main(int argc, char **argv)
 
 /*
 
+
+
     Vector evaluateError(const Vector8& p8, const Vector5& p5,
         boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
     {
@@ -513,16 +553,13 @@ int main(int argc, char **argv)
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,                                              
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
         
-        double errybyx;
-        errybyx = diffPoly(mpoint_[0],mpoly_);
-        
-
-
+    //mpoly_[0], mpoly_[1], mpoly_[2], mpoly_[3], mpoly_[4], mpoly_[5], mpoly_[6], mpoly_[7],   
+        double errybyx = diffPoly(mpoint_[0],mpoly_);
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -532,7 +569,7 @@ int main(int argc, char **argv)
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,                                            
                                             1.0, 0.0, 0.0, 0.0, 0.0, 
-                                            errybyx, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
@@ -546,4 +583,351 @@ int main(int argc, char **argv)
 };  // PolyPointFactor
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+ Vector evaluateError(const Vector8& p8, const Vector5& p5,
+        boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
+    {
+        
+        gtsam::Vector err(13); 
+        err = Vector::Zero(13);
+        
+
+       
+
+
+        
+        
+        err[0] =  p8[0] - mpoly_[0]  ;
+        err[1] =  p8[1] - mpoly_[1] ;
+        err[2] =  p8[2] - mpoly_[2] ;
+        err[3] =  p8[3] - mpoly_[3] ;
+        err[4] =  p8[4] - mpoly_[4] ;
+        err[5] =  p8[5] - mpoly_[5] ;
+        err[6] =  p8[6] - mpoly_[6] ;
+        err[7] =  p8[7] - mpoly_[7] ;
+
+        err[8] =  p5[0] - mpoint_[0] ;
+        err[9] =  p5[1] - getPoly(mpoint_[0],p8);
+        err[10] =  p5[2] - mpoint_[2] ;
+        err[11] =  p5[3] - mpoint_[3] ;
+        err[12] =  p5[4] - mpoint_[4] ;
+
+        ROS_INFO_STREAM("p5[1]: "<< p5[1] <<"");
+        ROS_INFO_STREAM("mpoint_[1]: "<< mpoint_[1] <<"");
+        ROS_INFO_STREAM("getpoly: "<<  getPoly(mpoint_[0],mpoly_) <<"");          
+        ROS_INFO_STREAM("err: "<<  err[9] <<"");
+
+
+        if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            pow(mpoint_[0],7), pow(mpoint_[0],6), pow(mpoint_[0],5), pow(mpoint_[0],4), pow(mpoint_[0],3), pow(mpoint_[0],2), mpoint_[0], 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
+        
+  
+     //pow(mpoint_[0],7), pow(mpoint_[0],6), pow(mpoint_[0],5), pow(mpoint_[0],4), pow(mpoint_[0],3), pow(mpoint_[0],2), mpoint_[0], 0.0,
+
+
+        double errybyx = diffPoly(mpoint_[0],p8);
+        if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,                                            
+                                            1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0).finished();
+        return err;
+    }
+   
+    gtsam::NonlinearFactor::shared_ptr clone() const override {
+      return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
+
+};  // PolyPointFactor
+
+
+
+
+
+
+
+
+
+
+class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
+  
+  private:
+    using This = PolyPointFactor;
+    using Base = gtsam::NoiseModelFactor2<Vector8, Vector5>;
+
+    Vector8 mpoly_;
+    Vector5 mpoint_;
+
+  public:
+        
+    typedef boost::shared_ptr<PolyPointFactor> shared_ptr;
+
+    PolyPointFactor(Key i, Key j, Vector8 mpoly, Vector5 mpoint, const SharedNoiseModel& model)
+        : Base(model, i, j), mpoly_(mpoly), mpoint_(mpoint) {}
+
+    virtual ~PolyPointFactor() 
+    {}
+
+    double getPoly(const double& x, const Vector8& p8) const 
+    {
+        double y;
+        y = (p8[0]*pow(x,7))+(p8[1]*pow(x,6))+(p8[2]*pow(x,5))+(p8[3]*pow(x,4))+(p8[4]*pow(x,3))+(p8[5]*pow(x,2))+(p8[6]*x)+p8[7];
+
+        
+        return y; // order p0 x^7 -> p7 x^1 
+    }
+    
+    double getPolyParam(const double& x, const double& y, const Vector8& p8, const int& pNo) const 
+    {
+        double pPrim;
+        switch (pNo) 
+        {
+        case 0:
+          pPrim = (y -(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,7)  ;
+          break;
+        case 1:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,6);
+          break;
+        case 2:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,5);
+          break;
+        case 3:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,4);
+          break;
+        case 4:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,3);
+          break;
+        case 5:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[6]*x)-p8[7])/pow(x,2);
+          break;
+        case 6:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-p8[7])/x;
+          break;
+        case 7:
+          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x));
+          break;  
+      }
+        
+        return pPrim; // order p0 x^7 -> p7 x^1 
+    }
+
+    double diffPoly(const double& x, const Vector8& p8) const 
+    {
+        double y;
+        y = (7*p8[0]*pow(x,6))+(6*p8[1]*pow(x,5))+(5*p8[2]*pow(x,4))+(4*p8[3]*pow(x,3))+(3*p8[4]*pow(x,2))+(2*p8[5]*x)+p8[6];
+        
+        return y; // order p0 x^7 -> p7 x^1 
+    }  
+
+    Vector evaluateError(const Vector8& p8, const Vector5& p5,
+        boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
+    {
+        
+        
+        
+
+
+        if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            pow(mpoint_[0],7), pow(mpoint_[0],6), pow(mpoint_[0],5), pow(mpoint_[0],4), pow(mpoint_[0],3), pow(mpoint_[0],2), mpoint_[0], 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
+        
+  
+     //pow(mpoint_[0],7), pow(mpoint_[0],6), pow(mpoint_[0],5), pow(mpoint_[0],4), pow(mpoint_[0],3), pow(mpoint_[0],2), mpoint_[0], 0.0,
+
+
+        double errybyx = diffPoly(mpoint_[0],p8);
+        if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,                                            
+                                            1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0).finished();
+
+        gtsam::Vector err(13); 
+        err = Vector::Zero(13);
+        err[0] =  p8[0] - getPolyParam(mpoint_[0],p5[1],p8,0) ;
+        err[1] =  p8[1] - getPolyParam(mpoint_[0],p5[1],p8,1) ;
+        err[2] =  p8[2] - getPolyParam(mpoint_[0],p5[1],p8,2) ;
+        err[3] =  p8[3] - getPolyParam(mpoint_[0],p5[1],p8,3) ;
+        err[4] =  p8[4] - getPolyParam(mpoint_[0],p5[1],p8,4) ;
+        err[5] =  p8[5] - getPolyParam(mpoint_[0],p5[1],p8,5) ;
+        err[6] =  p8[6] - getPolyParam(mpoint_[0],p5[1],p8,6) ;
+        err[7] =  p8[7] - getPolyParam(mpoint_[0],p5[1],p8,7) ;
+        ROS_INFO_STREAM("p8[7]: "<< p8[7] <<"");
+        ROS_INFO_STREAM("getPolyParam: "<< getPolyParam(mpoint_[0],p5[1],p8,7) <<"");     
+        err[8] =  p5[0] - mpoint_[0] ;
+        err[9] =  p5[1] - getPoly(mpoint_[0],p8);
+        err[10] =  p5[2] - mpoint_[2] ;
+        err[11] =  p5[3] - mpoint_[3] ;
+        err[12] =  p5[4] - mpoint_[4] ;
+
+       
+
+        return err;
+    }
+   
+    gtsam::NonlinearFactor::shared_ptr clone() const override {
+      return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
+
+};  // PolyPointFactor
+
+
+
+
+ if (H1) (*H1) = (Matrix(13, 8) <<   1.0, -(pow(x,13)/pow(x,14)), -(pow(x,12)/pow(x,14)), -(pow(x,11)/pow(x,14)), -(pow(x,10)/pow(x,14)), -(pow(x,9)/pow(x,14)), -(pow(x,8)/pow(x,14)), -(pow(x,7)/pow(x,14)),
+                                            -(pow(x,13)/pow(x,12)), 1.0, -(pow(x,11)/pow(x,12)), -(pow(x,10)/pow(x,12)), -(pow(x,9)/pow(x,12)), -(pow(x,8)/pow(x,12)), -(pow(x,7)/pow(x,12)), -(pow(x,6)/pow(x,12)),
+                                            -(pow(x,12)/pow(x,10)), -(pow(x,11)/pow(x,10)), 1.0, -(pow(x,9)/pow(x,10)), -(pow(x,8)/pow(x,10)), -(pow(x,7)/pow(x,10)), -(pow(x,6)/pow(x,10)), -(pow(x,5)/pow(x,10)), 
+                                            -(pow(x,11)/pow(x,8)), -(pow(x,10)/pow(x,8)), -(pow(x,9)/pow(x,8)), 1.0, -(pow(x,7)/pow(x,8)), -(pow(x,6)/pow(x,8)), -(pow(x,5)/pow(x,8)), -(pow(x,4)/pow(x,8)), 
+                                            -(pow(x,10)/pow(x,6)), -(pow(x,9)/pow(x,6)), -(pow(x,8)/pow(x,6)), -(pow(x,7)/pow(x,6)), 1.0, -(pow(x,5)/pow(x,6)), -(pow(x,4)/pow(x,6)), -(pow(x,3)/pow(x,6)), 
+                                            -(pow(x,9)/pow(x,4)), -(pow(x,8)/pow(x,4)), -(pow(x,7)/pow(x,4)), -(pow(x,6)/pow(x,4)), -(pow(x,5)/pow(x,4)), 1.0, -(pow(x,3)/pow(x,4)), -(pow(x,2)/pow(x,4)), 
+                                            -(pow(x,8)/pow(x,2)), -(pow(x,7)/pow(x,2)), -(pow(x,6)/pow(x,2)), -(pow(x,5)/pow(x,2)), -(pow(x,4)/pow(x,2)), -(pow(x,3)/pow(x,2)), 1.0, -x/pow(x,2), 
+                                            -pow(x,7), -pow(x,6), -pow(x,5), -pow(x,4), -pow(x,3), -pow(x,2), -x, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            pow(x,7), pow(x,6), pow(x,5), pow(x,4), pow(x,3), pow(x,2), x, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+   Vector evaluateError(const Vector8& p8, const Vector5& p5,
+        boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
+    {
+        
+        
+        
+
+      double x =  p5[0];     
+        if (H1) (*H1) = (Matrix(13, 8) <<   1.0, (pow(x,13)/pow(x,14)), (pow(x,12)/pow(x,14)), (pow(x,11)/pow(x,14)), (pow(x,10)/pow(x,14)), (pow(x,9)/pow(x,14)), (pow(x,8)/pow(x,14)), (pow(x,7)/pow(x,14)),
+                                            (pow(x,13)/pow(x,12)), 1.0, (pow(x,11)/pow(x,12)), (pow(x,10)/pow(x,12)), (pow(x,9)/pow(x,12)), (pow(x,8)/pow(x,12)), (pow(x,7)/pow(x,12)), (pow(x,6)/pow(x,12)),
+                                            (pow(x,12)/pow(x,10)), (pow(x,11)/pow(x,10)), 1.0, (pow(x,9)/pow(x,10)), (pow(x,8)/pow(x,10)), (pow(x,7)/pow(x,10)), (pow(x,6)/pow(x,10)), (pow(x,5)/pow(x,10)), 
+                                            (pow(x,11)/pow(x,8)), (pow(x,10)/pow(x,8)), (pow(x,9)/pow(x,8)), 1.0, (pow(x,7)/pow(x,8)), (pow(x,6)/pow(x,8)), (pow(x,5)/pow(x,8)), (pow(x,4)/pow(x,8)), 
+                                            (pow(x,10)/pow(x,6)), (pow(x,9)/pow(x,6)), (pow(x,8)/pow(x,6)), (pow(x,7)/pow(x,6)), 1.0, (pow(x,5)/pow(x,6)), (pow(x,4)/pow(x,6)), (pow(x,3)/pow(x,6)), 
+                                            (pow(x,9)/pow(x,4)), (pow(x,8)/pow(x,4)), (pow(x,7)/pow(x,4)), (pow(x,6)/pow(x,4)), (pow(x,5)/pow(x,4)), 1.0, (pow(x,3)/pow(x,4)), (pow(x,2)/pow(x,4)), 
+                                            (pow(x,8)/pow(x,2)), (pow(x,7)/pow(x,2)), (pow(x,6)/pow(x,2)), (pow(x,5)/pow(x,2)), (pow(x,4)/pow(x,2)), (pow(x,3)/pow(x,2)), 1.0, x/pow(x,2), 
+                                            pow(x,7), pow(x,6), pow(x,5), pow(x,4), pow(x,3), pow(x,2), x, 1.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+                                            -pow(x,7), -pow(x,6), -pow(x,5), -pow(x,4), -pow(x,3), -pow(x,2), -x, -1.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
+        
+  
+     //pow(mpoint_[0],7), pow(mpoint_[0],6), pow(mpoint_[0],5), pow(mpoint_[0],4), pow(mpoint_[0],3), pow(mpoint_[0],2), mpoint_[0], 0.0,
+
+
+        double errybyx = diffPoly(mpoint_[0],p8);
+        if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,                                            
+                                            1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0).finished();
+
+        gtsam::Vector err(13); 
+        err = Vector::Zero(13);
+        err[0] =  p8[0] - getPolyParam(p5[0],p5[1],p8,0) ;
+
+        err[1] =  p8[1] - getPolyParam(p5[0],p5[1],p8,1) ;
+        err[2] =  p8[2] - getPolyParam(p5[0],p5[1],p8,2) ;
+        err[3] =  p8[3] - getPolyParam(p5[0],p5[1],p8,3) ;
+        err[4] =  p8[4] - getPolyParam(p5[0],p5[1],p8,4) ;
+        err[5] =  p8[5] - getPolyParam(p5[0],p5[1],p8,5) ;
+        err[6] =  p8[6] - getPolyParam(p5[0],p5[1],p8,6) ;
+        err[7] =  p8[7] - getPolyParam(p5[0],p5[1],p8,7) ;
+        ROS_INFO_STREAM("err[7]: "<<  err[7] <<"");
+            
+        err[8] =  p5[0] - mpoint_[0] ;
+        err[9] =  p5[1] - getPoly(p5[0],p8);
+        err[10] =  p5[2] - mpoint_[2] ;
+        err[11] =  p5[3] - mpoint_[3] ;
+        err[12] =  p5[4] - mpoint_[4] ;
+
+        ROS_INFO_STREAM("p5[1]: "<< p5[1] <<"");
+        ROS_INFO_STREAM("mpoint_[1]: "<< mpoint_[1] <<"");
+        ROS_INFO_STREAM("getpoly: "<<  getPoly(mpoint_[0],p8) <<"");          
+        ROS_INFO_STREAM("err: "<<  err[9] <<"");
+
+        return err;
+    }
+   
+    gtsam::NonlinearFactor::shared_ptr clone() const override {
+      return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new PolyPointFactor(*this))); }
+
+};  // PolyPointFactor                                          
 */
