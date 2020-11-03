@@ -67,11 +67,11 @@ class CircleFactor: public NoiseModelFactor1<Vector5> {
 
     double err = 1/(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2));
     
-    double ctrval = 0.1;
+    double ctrval = 0.05;
     double jX = (ctrval*(2*circle_[0] - 2*po[0]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
     double jY = (ctrval*(2*circle_[1] - 2*po[1]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
    
-    if (H) (*H) = (Matrix(1, 5) << jX, jY, 0.0, 0.0, 0.0).finished();
+    if (H) (*H) = (Matrix(1, 5) << 0.0, jY, 0.0, 0.0, 0.0).finished();
     return (Vector(1) << err*ctrval).finished(); 
   }
 
@@ -110,40 +110,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         return y; // order p0 x^7 -> p7 x^1 
     }
     
-    double getPolyParam(const double& x, const double& y, const Vector8& p8, const int& pNo) const 
-    {
-        double pPrim;
-        switch (pNo) 
-        {
-        case 0:
-          pPrim = (y -(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,7)  ;
-          break;
-        case 1:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,6);
-          break;
-        case 2:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,5);
-          break;
-        case 3:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,4);
-          break;
-        case 4:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[5]*pow(x,2))-(p8[6]*x)-p8[7])/pow(x,3);
-          break;
-        case 5:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[6]*x)-p8[7])/pow(x,2);
-          break;
-        case 6:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-p8[7])/x;
-          break;
-        case 7:
-          pPrim = (y -(p8[0]*pow(x,7))-(p8[1]*pow(x,6))-(p8[2]*pow(x,5))-(p8[3]*pow(x,4))-(p8[4]*pow(x,3))-(p8[5]*pow(x,2))-(p8[6]*x));
-          break;  
-      }
-        
-        return pPrim; // order p0 x^7 -> p7 x^1 
-    }
-
+    
     double diffPoly(const double& x, const Vector8& p8) const 
     {
         double y;
@@ -168,23 +135,13 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         err[6] =  p8[6] - p8[6] ;
         err[7] =  p8[7] - p8[7] ;
 
-        err[8] =  p5[0] - mpoint_[0] ;
+        err[8] =  p5[0] - p5[0] ;
         err[9] =  p5[1] - getPoly(p5[0],p8);
-        err[10] =  p5[2] - mpoint_[2] ;
-        err[11] =  p5[3] - mpoint_[3] ;
-        err[12] =  p5[4] - mpoint_[4] ;
+        err[10] =  p5[2] - p5[2] ;
+        err[11] =  p5[3] - p5[3] ;
+        err[12] =  p5[4] - p5[4] ;
 
-        if (j_ == 1)
-        {
-          ROS_INFO_STREAM("p5[0]: "<< p5[0] <<"");
-          ROS_INFO_STREAM("mpoint_[0]: "<< mpoint_[0] <<"");
-          ROS_INFO_STREAM("p5[1]: "<< p5[1] <<"");
-          ROS_INFO_STREAM("mpoint_[1]: "<< mpoint_[1] <<""); 
-          ROS_INFO_STREAM("getPoly-p5[0]: "<< getPoly(p5[0],p8) <<""); 
-          ROS_INFO_STREAM("getPoly-mpoint_[0]: "<< getPoly(mpoint_[0],p8) <<"");   
-          ROS_INFO_STREAM("err: "<<  err[9] <<"");
-          ROS_INFO_STREAM(".\n");
-        }
+       
         
 
         if (H1) (*H1) = (Matrix(13, 8) <<   1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -206,6 +163,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
 
         double errYx = diffPoly(p5[0],p8);
+        //(-1)*errYx
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -214,8 +172,8 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,                                            
-                                            1.0, 0.0, 0.0, 0.0, 0.0, 
-                                            (-1)*errYx, 1.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
@@ -230,6 +188,79 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
 
 
+
+class ppFactor: public NoiseModelFactor2<Vector5,Vector5> {
+  
+  private:
+    using This = ppFactor;
+    using Base = gtsam::NoiseModelFactor2<Vector5, Vector5>;
+
+    
+    
+  public:
+        
+    typedef boost::shared_ptr<ppFactor> shared_ptr;
+
+    ppFactor(Key i, Key j, Vector5 pointA, Vector5 pointB, const SharedNoiseModel& model)
+        : Base(model, i, j) {}
+
+    virtual ~ppFactor() 
+    {}
+
+
+     Vector evaluateError(const Vector5& pA, const Vector5& pB,
+        boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
+    {
+        
+        gtsam::Vector err(10); 
+        err = Vector::Zero(10);
+        double dis = 0.1;
+        err[0] =  pA[0] - pB[0] + dis ;
+        err[1] =  pA[1] - pA[1] ;
+        err[2] =  pA[2] - pA[2] ;
+        err[3] =  pA[3] - pA[3] ;
+        err[4] =  pA[4] - pA[4] ;
+
+        err[5] =  pB[0] - pA[0] - dis ;
+
+        err[6] =  pB[1] - pB[1] ;
+        err[7] =  pB[2] - pB[2] ;
+        err[8] =  pB[3] - pB[3] ;
+        err[9] =  pB[4] - pB[4] ;
+        
+       
+        
+
+        if (H1) (*H1) = (Matrix(10, 5) <<   1.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 1.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 1.0,
+                                            -1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0).finished();
+      
+       
+        if (H2) (*H2) = (Matrix(10, 5) <<   -1.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            1.0, 0.0, 0.0, 0.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 0.0,
+                                            0.0, 0.0, 1.0, 0.0, 0.0,                                            
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, 0.0, 1.0).finished();
+        return err;
+    }
+   
+    gtsam::NonlinearFactor::shared_ptr clone() const override {
+      return boost::static_pointer_cast<gtsam::NonlinearFactor>(
+        gtsam::NonlinearFactor::shared_ptr(new ppFactor(*this))); }
+
+};  // ppFactor
 
 
 
@@ -333,108 +364,79 @@ int main(int argc, char **argv)
 
         gtsam::Vector polyParams(8);
         polyParams << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500; // order x^7 -> x^0 
-        graph.addPrior(0, polyParams, priorPolyNoise);
+        //graph.addPrior(Symbol('l', 0), polyParams, priorPolyNoise);
    
         gtsam::Vector polyPointSigmas(13);
-        
         polyPointSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
         auto polyPointNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPointSigmas);
         
         geometry_msgs::Point pois;
 
         gtsam::Vector po1(5);
-        po1 << -1.0, 8.0, 0.0, 0.0, 0.0;
-        //graph.addPrior(1, po1, priorPolyNoise);
+        po1 << -3.0, 3.0, 0.0, 0.0, 0.0;
+        gtsam::Vector poPriorSigmas(5);
+        poPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0;
+        auto priorPoNoise = gtsam::noiseModel::Diagonal::Sigmas(poPriorSigmas);
+        graph.addPrior(Symbol('p', 0), po1, priorPoNoise);
         pois.x = po1[0];
         pois.y = po1[1];
         points.points.push_back(pois);
+
+
+        std::vector<gtsam::Vector5> poses;
+        for(size_t j = 0; j < 60; ++j) 
+        {
+          poses.push_back(po1);
+        }
         
-        gtsam::Vector po2(5);
-        po2 << -0.5, 3.8, 0.0, 0.0, 0.0;
-        //graph.addPrior(2, po2, priorPolyNoise);
-        pois.x = po2[0];
-        pois.y = po2[1];
-        points.points.push_back(pois);
+        for(size_t j = 0; j < poses.size(); ++j) 
+        {
+          graph.push_back(boost::make_shared<PolyPointFactor>(Symbol('l', 0), Symbol('p', j), polyParams, poses[j], polyPointNoise));
+        }
+        
+        gtsam::Vector ppSigmas(10);
+        ppSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0;
+        auto ppNoise = gtsam::noiseModel::Diagonal::Sigmas(ppSigmas);
 
-        gtsam::Vector po3(5);
-        po3 << 0.0, 1.5, 0.0, 0.0, 0.0;
-        pois.x = po3[0];
-        pois.y = po3[1];
-        points.points.push_back(pois);
 
-        gtsam::Vector po4(5);
-        po4 << 1.2, 3.0, 0.0, 0.0, 0.0;
-        pois.x = po4[0];
-        pois.y = po4[1];
-        points.points.push_back(pois);
+        for (size_t j = 0; j < (poses.size()-1); ++j)   //points.size() = 5
+        {
+          graph.push_back(boost::make_shared<ppFactor>(Symbol('p', j), Symbol('p', j+1), poses[j], poses[j+1], ppNoise));
+        }
 
-        gtsam::Vector po5(5);
-        po5 << 2.0, 4.9, 0.0, 0.0, 0.0;
-        pois.x = po5[0];
-        pois.y = po5[1];
-        points.points.push_back(pois);
-
-        graph.push_back(boost::make_shared<PolyPointFactor>(0, 1, polyParams, po1, polyPointNoise));
-        graph.push_back(boost::make_shared<PolyPointFactor>(0, 2, polyParams, po2, polyPointNoise));
-        graph.push_back(boost::make_shared<PolyPointFactor>(0, 3, polyParams, po3, polyPointNoise));
-        graph.push_back(boost::make_shared<PolyPointFactor>(0, 4, polyParams, po4, polyPointNoise));
-        graph.push_back(boost::make_shared<PolyPointFactor>(0, 5, polyParams, po5, polyPointNoise));
         
         
-       
         auto circleNoise = noiseModel::Diagonal::Sigmas(Vector1(0.0));  // 10cm std on x,y
         gtsam::Vector circle4(3); //x, y, r
         circle4 << 0.8, 2.6, 0.3;
 
-        //graph.emplace_shared<CircleFactor>(4, circle4, circleNoise);
-        //graph.emplace_shared<CircleFactor>(3, circle4, circleNoise);
-        //graph.emplace_shared<CircleFactor>(2, circle4, circleNoise);
+        
+        for(size_t j = 0; j < poses.size(); ++j) 
+        {
+          graph.push_back(boost::make_shared<CircleFactor>(Symbol('p', j), circle4, circleNoise));
+        }
+
+
+
+
         graph.print("\nFactor Graph:\n");  // print
-
         Values initialEstimate;
-        geometry_msgs::Point poisInit;
+        
         gtsam::Vector po0init(8);
-        //po0init << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500;
-        po0init << 0.0, 0.0, 0.0, 0.5, 0.0, 2.0, -1.0, 1.0;
+        po0init << 0.001, 0.02, 0.0, 0.5, 0.0, 2.0, -1.0, 1.0;
+        initialEstimate.insert(Symbol('l', 0), po0init);
 
+        geometry_msgs::Point poisInit;
         gtsam::Vector po1init(5);
-        po1init << -1.1, 8.1, 0.0, 0.0, 0.0;
+        po1init << -3.1, 3.1, 0.0, 0.0, 0.0;
         poisInit.x = po1init[0];
         poisInit.y = po1init[1];
         pointsInit.points.push_back(poisInit);
-
-        gtsam::Vector po2init(5);
-        po2init << -0.6, 4.0, 0.0, 0.0, 0.0;
-        poisInit.x = po2init[0];
-        poisInit.y = po2init[1];
-        pointsInit.points.push_back(poisInit);
-
-        gtsam::Vector po3init(5);
-        po3init << 0.2, 1.6, 0.0, 0.0, 0.0;
-        poisInit.x = po3init[0];
-        poisInit.y = po3init[1];
-        pointsInit.points.push_back(poisInit);
         
-        gtsam::Vector po4init(5);
-        po4init << 1.2, 2.8, 0.0, 0.0, 0.0;
-        
-        poisInit.x = po4init[0];
-        poisInit.y = po4init[1];
-        pointsInit.points.push_back(poisInit);
-
-        gtsam::Vector po5init(5);
-        po5init << 1.8, 5.0, 0.0, 0.0, 0.0;
-        poisInit.x = po5init[0];
-        poisInit.y = po5init[1];
-        pointsInit.points.push_back(poisInit);
-
-        initialEstimate.insert(0, po0init);
-        initialEstimate.insert(1, po1init);
-        initialEstimate.insert(2, po2init);
-        initialEstimate.insert(3, po3init);
-        initialEstimate.insert(4, po4init);
-        initialEstimate.insert(5, po5init);
-
+        for (size_t j = 0; j < poses.size(); ++j)   //points.size()
+        {
+          initialEstimate.insert(Symbol('p', j), po1init);
+        }
         initialEstimate.print("\nInitial Estimate:\n");  // print
 
         LevenbergMarquardtOptimizer optimizer(graph, initialEstimate);
@@ -442,38 +444,28 @@ int main(int argc, char **argv)
         result.print("Final Result:\n");
         geometry_msgs::Point poisOpt;
         
-        Vector8 polyUpdate = result.at<Vector8>(0);
+        Vector8 polyUpdate = result.at<Vector8>(Symbol('l', 0));
 
-        Vector5 x1_update = result.at<Vector5>(1);
-        poisOpt.x = x1_update[0];
-        poisOpt.y = x1_update[1];
-        PointOpt.points.push_back(poisOpt);
-        Vector5 x2_update = result.at<Vector5>(2);
-        poisOpt.x = x2_update[0];
-        poisOpt.y = x2_update[1];
-        PointOpt.points.push_back(poisOpt);
-        Vector5 x3_update = result.at<Vector5>(3);
-        poisOpt.x = x3_update[0];
-        poisOpt.y = x3_update[1];
-        PointOpt.points.push_back(poisOpt);
-        Vector5 x4_update = result.at<Vector5>(4);
-        poisOpt.x = x4_update[0];
-        poisOpt.y = x4_update[1];
-        PointOpt.points.push_back(poisOpt);
-        Vector5 x5_update = result.at<Vector5>(5);
-        poisOpt.x = x5_update[0];
-        poisOpt.y = x5_update[1];
-        PointOpt.points.push_back(poisOpt);
-        
+        for (size_t j = 0; j < poses.size(); ++j)   //points.size()
+        {
+          Vector5 x_update = result.at<Vector5>(Symbol('p', j));
+          poisOpt.x = x_update[0];
+          poisOpt.y = x_update[1];
+          PointOpt.points.push_back(poisOpt);
+        }
+
         Marginals marginals(graph, result);
-        cout << "polynomial covariance:\n" << marginals.marginalCovariance(0) << endl;
-        cout << "p1 covariance:\n" << marginals.marginalCovariance(1) << endl;
-        cout << "p2 covariance:\n" << marginals.marginalCovariance(2) << endl;
-        cout << "p3 covariance:\n" << marginals.marginalCovariance(3) << endl;
-        cout << "p4 covariance:\n" << marginals.marginalCovariance(4) << endl;
-        cout << "p5 covariance:\n" << marginals.marginalCovariance(5) << endl;
-
+        /*
+        cout << "polynomial covariance:\n" << marginals.marginalCovariance(Symbol('l', 0)) << endl;
+        cout << "p1 covariance:\n" << marginals.marginalCovariance(Symbol('p', 0)) << endl;
+        cout << "p2 covariance:\n" << marginals.marginalCovariance(Symbol('p', 1)) << endl;
+        cout << "p3 covariance:\n" << marginals.marginalCovariance(Symbol('p', 2)) << endl;
+        cout << "p4 covariance:\n" << marginals.marginalCovariance(Symbol('p', 3)) << endl;
+        cout << "p5 covariance:\n" << marginals.marginalCovariance(Symbol('p', 4)) << endl;
+        */
         /////*************************************************////////////////
+
+
         for (double i = 0; i < 100; ++i)
         {
         geometry_msgs::Point p;
