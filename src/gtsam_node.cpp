@@ -58,16 +58,32 @@ class CircleFactor: public NoiseModelFactor1<Vector5> {
   Vector evaluateError(const Vector5& po,
                        boost::optional<Matrix&> H = boost::none) const override {
 
-
+    /*                      
     double err = 1/(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2));
     
     double ctrval = 0.05;
-    double jX = (ctrval*(2*circle_[0] - 2*po[0]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
-    double jY = (ctrval*(2*circle_[1] - 2*po[1]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
+    double jX = (ctrval*(2*po[0] - 2*circle_[0]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
+    double jY = (ctrval*(2*po[1] - 2*circle_[1]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
    
-    if (H) (*H) = (Matrix(1, 5) << -jX, -jY, 0.0, 0.0, 0.0).finished();
+    if (H) (*H) = (Matrix(1, 5) << 0.0, jY, 0.0, 0.0, 0.0).finished();
     return (Vector(1) << err*ctrval).finished(); 
+    /**/
+    //
+    double ctrval = 0.2;
+    double err = 1/(pow(2,(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2)))));
+    
+    
+    double jX = (-0.6931471*ctrval*(po[0]-circle_[0])*pow(2,(1-(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2)) ))))/pow(circle_[2],2);
+    double jY = (-0.6931471*ctrval*(po[1]-circle_[1])*pow(2,(1-(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2)) ))))/pow(circle_[2],2);
+   
+    if (H) (*H) = (Matrix(1, 5) << jX, jY, 0.0, 0.0, 0.0).finished();
+    //ROS_INFO_STREAM("errY: " << err << "");
+    //ROS_INFO_STREAM("errYJ: " << jY << "");
+    return (Vector(1) << err).finished();
+    /**/ 
   }
+
+  
 
   gtsam::NonlinearFactor::shared_ptr clone() const override {
     return boost::static_pointer_cast<gtsam::NonlinearFactor>(
@@ -115,6 +131,16 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         return y; // order p0 x^7 -> p7 x^1 
     }  
 
+    double diff2Poly(const double& x, const Vector8& p8) const 
+    {
+        double y;
+        y = (42*p8[0]*pow(x,5))+(30*p8[1]*pow(x,4))+(20*p8[2]*pow(x,3))+(12*p8[3]*pow(x,2))+(6*p8[4]*x)+(2*p8[5]);
+        
+        return y; // order p0 x^7 -> p7 x^1 
+    }  
+
+
+
      Vector evaluateError(const Vector8& p8, const Vector5& p5,
         boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
     {
@@ -122,6 +148,44 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
         gtsam::Vector err(13); 
         err = Vector::Zero(13);
         err[9] =  p5[1] - getPoly(p5[0],p8);
+        //ROS_INFO_STREAM("errY: " << err[9] << "");
+
+        double errYx = diffPoly(p5[0],p8);
+        double errY2x = diff2Poly(p5[0],p8);
+        double curve = pow((pow(errYx,2)+1),1.5)/abs(errY2x);
+        double ctrVal = 1;
+        double curveMin = 1;
+        err[11] =  1/(pow(2,ctrVal*(p5[3] - curveMin)));
+        //ROS_INFO_STREAM("node: " << j_ << "");
+        ROS_INFO_STREAM("errCurve: " << err[11] << "");
+        //curve = ((1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))/abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5)
+        //errCurve = 1/2^(a*((((1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))/abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5))-m)
+        
+/**/
+        double crvJp0 = (-0.6931471*ctrVal*(((21* pow(p5[0],6)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((42*pow(p5[0],5) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp0)) {crvJp0 = 0.0;}
+        double crvJp1 = (-0.6931471*ctrVal*(((18* pow(p5[0],5)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((30*pow(p5[0],4) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp1)) {crvJp1 = 0.0;}
+        double crvJp2 = (-0.6931471*ctrVal*(((15* pow(p5[0],4)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((20*pow(p5[0],3) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp2)) {crvJp2 = 0.0;}
+        double crvJp3 = (-0.6931471*ctrVal*(((12* pow(p5[0],3)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((12*pow(p5[0],2) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp3)) {crvJp3 = 0.0;}
+        double crvJp4 = (-0.6931471*ctrVal*(((9*  pow(p5[0],2)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((6*      p5[0]   *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp4)) {crvJp4 = 0.0;}
+        double crvJp5 = (-0.6931471*ctrVal*(((6*      p5[0]*    errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((2*                 pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp5)) {crvJp5 = 0.0;}
+        double crvJp6 = (-0.6931471*ctrVal*   3*                errYx*  sqrt( pow(errYx,2)  +1))                                                                                     /(abs(errY2x)*pow(2,ctrVal*(p5[3] - curveMin)));
+        if (isnan(crvJp6)) {crvJp6 = 0.0;}
+
+        ROS_INFO_STREAM("crvJp6: " << crvJp6 << "");
+        ROS_INFO_STREAM("crvJp5: " << crvJp5 << "");
+        ROS_INFO_STREAM("crvJp4: " << crvJp4 << "");
+        ROS_INFO_STREAM("crvJp3: " << crvJp3 << "");
+        ROS_INFO_STREAM("crvJp2: " << crvJp2 << "");
+        ROS_INFO_STREAM("crvJp1: " << crvJp1 << "");
+        ROS_INFO_STREAM("crvJp0: " << crvJp0 << "");
+
+
 
         if (H1) (*H1) = (Matrix(13, 8) <<   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -134,11 +198,12 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             -pow(p5[0],7), -pow(p5[0],6), -pow(p5[0],5), -pow(p5[0],4), -pow(p5[0],3), -pow(p5[0],2), -p5[0], -1.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
+                                            crvJp0, crvJp1, crvJp2, crvJp3, crvJp4, crvJp5, crvJp6, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
-
-        //double errYx = diffPoly(p5[0],p8);
+          //crvJp0, crvJp1, crvJp2, crvJp3, crvJp4, crvJp5, crvJp6, 0.0,
+       
         //(-1)*errYx
+        double kdot = (-0.6931471*ctrVal)/(pow(2,ctrVal*(p5[3] - curveMin)));
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -150,7 +215,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0, 1.0, 0.0, 
+                                            0.0, 0.0, 0.0, kdot, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
         return err;
     }
@@ -268,7 +333,7 @@ int main(int argc, char **argv)
         PointOpt.type = visualization_msgs::Marker::POINTS;
         circleObst.type = visualization_msgs::Marker::LINE_STRIP;
         // POINTS markers use x and y scale for width/height respectively
-        points.scale.x = 0.05; points.scale.y = 0.05;  points.scale.z = 0.0;
+        points.scale.x = 0.2; points.scale.y = 0.2;  points.scale.z = 0.0;
         pointsInit.scale.x = 0.05; pointsInit.scale.y = 0.05; pointsInit.scale.z = 0.0;
         PointOpt.scale.x = 0.05; PointOpt.scale.y = 0.05; PointOpt.scale.z = 0.0;
         points.color.g = 1.0; points.color.a = 1.0;
@@ -287,7 +352,8 @@ int main(int argc, char **argv)
         polyPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
         auto priorPolyNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPriorSigmas);
         gtsam::Vector polyParams(8);
-        polyParams << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500; // order x^7 -> x^0 
+        polyParams << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ; // order x^7 -> x^0 
+        //polyParams << 0.001, -0.036, 0.294, -0.808, -0.505, 4.54, -2.492, 1.500; // order x^7 -> x^0 
         //graph.addPrior(Symbol('l', 0), polyParams, priorPolyNoise);
         /*--------------------------------------------------------------------------------------------------------*/
 
@@ -296,21 +362,27 @@ int main(int argc, char **argv)
         polyPointSigmas << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 ;
         auto polyPointNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPointSigmas);
 
-        gtsam::Vector po1(5);
+        gtsam::Vector po1(5), po2(5), poj(5) ;
         po1 << -3.0, 3.0, 0.0, 0.0, 0.0;
+        poj << 0.0, 0.0, 0.0, 1.0, 0.0;
+        po2 << 3.0, -3.0, 0.0, 0.0, 0.0;
         gtsam::Vector poPriorSigmas(5);
         poPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0;
         auto priorPoNoise = gtsam::noiseModel::Diagonal::Sigmas(poPriorSigmas);
         graph.addPrior(Symbol('p', 0), po1, priorPoNoise);   //add prior on first point
+        graph.addPrior(Symbol('p', 59), po2, priorPoNoise);   //add prior on first point
         geometry_msgs::Point pois; 
         pois.x = po1[0];
         pois.y = po1[1];
+        points.points.push_back(pois);
+        pois.x = po2[0];
+        pois.y = po2[1];
         points.points.push_back(pois);
 
         std::vector<gtsam::Vector5> poses;
         for(size_t j = 0; j < 60; ++j) // create vector of poses
         {
-          poses.push_back(po1);
+          poses.push_back(poj);
         }
         
         for(size_t j = 0; j < poses.size(); ++j) //add polynoaml<->point factors to the graph
@@ -334,23 +406,25 @@ int main(int argc, char **argv)
 
         /*--------------------------------------| obstacle  factor |----------------------------------------------*/
         auto circleNoise = noiseModel::Diagonal::Sigmas(Vector1(0.0));  // 10cm std on x,y
-        gtsam::Vector circle4(3); //x, y, r
-        circle4 << 0.5, 2.6, 0.6;
-
+        gtsam::Vector circle0(3),circle1(3); //x, y, r
+        circle0 <<  -0.5, 0.6, 0.5;
+        circle1 << 2.0, 3.0, 0.8;
         
         for(size_t j = 0; j < poses.size(); ++j) 
         {
-          graph.push_back(boost::make_shared<CircleFactor>(Symbol('p', j), circle4, circleNoise));
+          graph.push_back(boost::make_shared<CircleFactor>(Symbol('p', j), circle0, circleNoise));
+          graph.push_back(boost::make_shared<CircleFactor>(Symbol('p', j), circle1, circleNoise));
         }
         /*--------------------------------------------------------------------------------------------------------*/
-
+        ROS_INFO_STREAM("/////////////////////////////////////////////////////////");
         //graph.print("\nFactor Graph:\n");  // cout the graph
 
         /*----------------------------| graph optimization initialization |----------------------------------------*/
         Values initialEstimate;
         
         gtsam::Vector po0init(8);
-        po0init << 0.001, 0.02, 0.0, 0.5, 0.0, 2.0, -1.0, 1.0;
+        po0init << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+        //po0init << 0.001, 0.02, 0.0, 0.5, 0.0, 2.0, -1.0, 1.0;
         initialEstimate.insert(Symbol('l', 0), po0init);
 
         geometry_msgs::Point poisInit;
@@ -397,6 +471,9 @@ int main(int argc, char **argv)
         /*--------------------------------------------------------------------------------------------------------*/
 
         /*------------------------------------| graph result to rviz  |-------------------------------------------*/
+        
+        auto circle1bst = circleObst;
+        circle1bst.id = 5;
         for (double i = 0; i < 100; ++i)
         {
         geometry_msgs::Point p;
@@ -408,15 +485,27 @@ int main(int argc, char **argv)
         for (double i = 0; i < (2 * M_PI); i = i + (M_PI/50))
         {
         geometry_msgs::Point p;
-        p.x = circle4[2] * cos(i) + circle4[0];
-        p.y = circle4[2] * sin(i) + circle4[1];
+        p.x = circle0[2] * cos(i) + circle0[0];
+        p.y = circle0[2] * sin(i) + circle0[1];
         p.z = 0;
         circleObst.points.push_back(p);
         }
+        
+        for (double i = 0; i < (2 * M_PI); i = i + (M_PI/50))
+        {
+        geometry_msgs::Point p;
+        p.x = circle1[2] * cos(i) + circle1[0];
+        p.y = circle1[2] * sin(i) + circle1[1];
+        p.z = 0;
+        circle1bst.points.push_back(p);
+        }
+        
+
         marker_pub.publish(circleObst);
+        marker_pub.publish(circle1bst);
         marker_pub.publish(line_strip);
         marker_pub.publish(points);
-        marker_pub.publish(pointsInit);
+        //marker_pub.publish(pointsInit);
         marker_pub.publish(PointOpt);
 
         /*--------------------------------------------------------------------------------------------------------*/
