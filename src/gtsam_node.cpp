@@ -26,6 +26,7 @@
 #include <gtsam/inference/Symbol.h>
 #include <gtsam/sam/BearingRangeFactor.h>
 #include <gtsam/base/OptionalJacobian.h>
+#include <gtsam/inference/LabeledSymbol.h>
 
 #include <gtsam_node/ArticulatedAngles.h>
 #include <gtsam_node/CanData.h>
@@ -58,19 +59,19 @@ class CircleFactor: public NoiseModelFactor1<Vector5> {
   Vector evaluateError(const Vector5& po,
                        boost::optional<Matrix&> H = boost::none) const override {
 
-    /*                      
+    /*                 
     double err = 1/(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2));
     
     double ctrval = 0.05;
     double jX = (ctrval*(2*po[0] - 2*circle_[0]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
     double jY = (ctrval*(2*po[1] - 2*circle_[1]))/pow(pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2),2);
    
-    if (H) (*H) = (Matrix(1, 5) << 0.0, jY, 0.0, 0.0, 0.0).finished();
+    if (H) (*H) = (Matrix(1, 5) << jX, jY, 0.0, 0.0, 0.0).finished();
     return (Vector(1) << err*ctrval).finished(); 
     /**/
     //
-    double ctrval = 0.2;
-    double err = 1/(pow(2,(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2)))));
+    double ctrval = 0.05;
+    double err = (1/(pow(2,(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2))))))-1;
     
     
     double jX = (-0.6931471*ctrval*(po[0]-circle_[0])*pow(2,(1-(ctrval*((pow(po[0]-circle_[0],2)+pow(po[1]-circle_[1],2)-pow(circle_[2],2))/pow(circle_[2],2)) ))))/pow(circle_[2],2);
@@ -103,7 +104,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
     Vector8 mpoly_;
     Vector5 mpoint_;
-    double j_;
+    gtsam::Key j_;
   public:
         
     typedef boost::shared_ptr<PolyPointFactor> shared_ptr;
@@ -144,7 +145,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
      Vector evaluateError(const Vector8& p8, const Vector5& p5,
         boost::optional<Matrix&> H1 = boost::none, boost::optional<Matrix&> H2 = boost::none) const override 
     {
-        
+        //PrintKey(j_);
         gtsam::Vector err(13); 
         err = Vector::Zero(13);
         err[9] =  p5[1] - getPoly(p5[0],p8);
@@ -152,39 +153,58 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
 
         double errYx = diffPoly(p5[0],p8);
         double errY2x = diff2Poly(p5[0],p8);
-        double curve = pow((pow(errYx,2)+1),1.5)/abs(errY2x);
+        double curve = abs(errY2x)/pow((pow(errYx,2)+1),1.5);
         double ctrVal = 1;
-        double curveMin = 1;
-        err[11] =  1/(pow(2,ctrVal*(p5[3] - curveMin)));
-        //ROS_INFO_STREAM("node: " << j_ << "");
-        ROS_INFO_STREAM("errCurve: " << err[11] << "");
-        //curve = ((1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))/abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5)
-        //errCurve = 1/2^(a*((((1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))/abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5))-m)
+        double curveMax = 0.1;
+        //err[11] =  1/(pow(2,ctrVal*(curveMax - curve)));
+        err[9] = err[9] + 1/(pow(2,ctrVal*(curveMax - curve)));
+        ROS_INFO_STREAM("Curve: " << curve << "");
+        //ROS_INFO_STREAM("errCurve: " << err[11] << "");
+
+        //curve = (abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5)/(1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))
+
+        //errCurve = 1/2^(a*(m-(((abs(42*p0*x^5+30*p1*x^4+20*p2*x^3+12*p3*x^2+6*p4*x+2*p5)/(1+(7*p0*x^6+6*p1*x^5+5p2*x^4+4*p3*x^3+3*p4*x^2+2*p5*x+p6)^2)^(3/2))))
         
-/**/
-        double crvJp0 = (-0.6931471*ctrVal*(((21* pow(p5[0],6)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((42*pow(p5[0],5) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp0)) {crvJp0 = 0.0;}
-        double crvJp1 = (-0.6931471*ctrVal*(((18* pow(p5[0],5)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((30*pow(p5[0],4) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp1)) {crvJp1 = 0.0;}
-        double crvJp2 = (-0.6931471*ctrVal*(((15* pow(p5[0],4)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((20*pow(p5[0],3) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp2)) {crvJp2 = 0.0;}
-        double crvJp3 = (-0.6931471*ctrVal*(((12* pow(p5[0],3)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((12*pow(p5[0],2) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp3)) {crvJp3 = 0.0;}
-        double crvJp4 = (-0.6931471*ctrVal*(((9*  pow(p5[0],2)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((6*      p5[0]   *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp4)) {crvJp4 = 0.0;}
-        double crvJp5 = (-0.6931471*ctrVal*(((6*      p5[0]*    errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((2*                 pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp5)) {crvJp5 = 0.0;}
-        double crvJp6 = (-0.6931471*ctrVal*   3*                errYx*  sqrt( pow(errYx,2)  +1))                                                                                     /(abs(errY2x)*pow(2,ctrVal*(p5[3] - curveMin)));
-        if (isnan(crvJp6)) {crvJp6 = 0.0;}
+/**/    
+        gtsam::Vector crvJp(7); 
+        crvJp = Vector::Zero(7);
+        double lnCtr = -0.6931471*ctrVal;
+        double deno = (pow(2,ctrVal*(curveMax - curve)));
+        double eqp1 = (errYx* abs(errY2x))/(pow( (pow(errYx,2)+1),2.5));
+        double eqp2 = pow( (pow(errYx,2)+1) ,1.5) *abs(errY2x);
 
-        ROS_INFO_STREAM("crvJp6: " << crvJp6 << "");
-        ROS_INFO_STREAM("crvJp5: " << crvJp5 << "");
-        ROS_INFO_STREAM("crvJp4: " << crvJp4 << "");
-        ROS_INFO_STREAM("crvJp3: " << crvJp3 << "");
-        ROS_INFO_STREAM("crvJp2: " << crvJp2 << "");
-        ROS_INFO_STREAM("crvJp1: " << crvJp1 << "");
-        ROS_INFO_STREAM("crvJp0: " << crvJp0 << "");
 
+        crvJp[0] = (lnCtr*(( (21* pow(p5[0],6)* eqp1)  - ((42*pow(p5[0],5) *  errY2x)  / eqp2))))   / deno;
+       
+        crvJp[1] = (lnCtr*(( (18* pow(p5[0],5)* eqp1)  - ((30*pow(p5[0],4) *  errY2x)  / eqp2))))   / deno;
+        
+        crvJp[2] = (lnCtr*(( (15* pow(p5[0],4)* eqp1)  - ((20*pow(p5[0],3) *  errY2x)  / eqp2))))   / deno;
+       
+        crvJp[3] = (lnCtr*(( (12* pow(p5[0],3)* eqp1)  - ((12*pow(p5[0],2) *  errY2x)  / eqp2))))   / deno;
+      
+        crvJp[4] = (lnCtr*(( (9*  pow(p5[0],2)* eqp1)  - ((6*      p5[0]   *  errY2x)  / eqp2))))   / deno;
+   
+        crvJp[5] = (lnCtr*(( (6*      p5[0]*    eqp1)  - ((2*                 errY2x)  / eqp2))))   / deno;
+       
+        crvJp[6] = (lnCtr*   3*     errYx* abs(errY2x)) / (pow( (pow(errYx,2)+1),2.5)*deno);
+        /*
+        if (isnan(crvJp[0])) {crvJp[0] = 0.0;}
+        if (isnan(crvJp[1])) {crvJp[1] = 0.0;}
+        if (isnan(crvJp[2])) {crvJp[2] = 0.0;}
+        if (isnan(crvJp[3])) {crvJp[3] = 0.0;}
+        if (isnan(crvJp[4])) {crvJp[4] = 0.0;}
+        if (isnan(crvJp[5])) {crvJp[5] = 0.0;}
+        if (isnan(crvJp[6])) {crvJp[6] = 0.0;}
+        
+        /*
+        ROS_INFO_STREAM("crvJp6: " << crvJp[6] << "");
+        ROS_INFO_STREAM("crvJp5: " << crvJp[5] << "");
+        ROS_INFO_STREAM("crvJp4: " << crvJp[4] << "");
+        ROS_INFO_STREAM("crvJp3: " << crvJp[3] << "");
+        ROS_INFO_STREAM("crvJp2: " << crvJp[2] << "");
+        ROS_INFO_STREAM("crvJp1: " << crvJp[1] << "");
+        ROS_INFO_STREAM("crvJp0: " << crvJp[0] << "");
+        */
 
 
         if (H1) (*H1) = (Matrix(13, 8) <<   0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
@@ -196,14 +216,15 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
-                                            -pow(p5[0],7), -pow(p5[0],6), -pow(p5[0],5), -pow(p5[0],4), -pow(p5[0],3), -pow(p5[0],2), -p5[0], -1.0,
+                                            -pow(p5[0],7)+crvJp[0], -pow(p5[0],6)+crvJp[1], -pow(p5[0],5)+crvJp[2], -pow(p5[0],4)+crvJp[3], -pow(p5[0],3)+crvJp[4], -pow(p5[0],2)+crvJp[5], -p5[0]+crvJp[6], -1.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 
-                                            crvJp0, crvJp1, crvJp2, crvJp3, crvJp4, crvJp5, crvJp6, 0.0,
+                                            0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0).finished();
           //crvJp0, crvJp1, crvJp2, crvJp3, crvJp4, crvJp5, crvJp6, 0.0,
-       
+          //crvJp[0], crvJp[1], crvJp[2], crvJp[3], crvJp[4], crvJp[5], crvJp[6], 0.0,
         //(-1)*errYx
-        double kdot = (-0.6931471*ctrVal)/(pow(2,ctrVal*(p5[3] - curveMin)));
+        //double kdot = (0.6931471*ctrVal)/(pow(2,ctrVal*( curveMax - curve)));
+        //-pow(p5[0],7), -pow(p5[0],6), -pow(p5[0],5), -pow(p5[0],4), -pow(p5[0],3), -pow(p5[0],2), -p5[0], -1.0,
         if (H2) (*H2) = (Matrix(13, 5) <<   0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
@@ -215,7 +236,7 @@ class PolyPointFactor: public NoiseModelFactor2<Vector8,Vector5> {
                                             0.0, 0.0, 0.0, 0.0, 0.0, 
                                             0.0, 1.0, 0.0, 0.0, 0.0,
                                             0.0, 0.0, 1.0, 0.0, 0.0,
-                                            0.0, 0.0, 0.0, kdot, 0.0, 
+                                            0.0, 0.0, 0.0, 1.0, 0.0, 
                                             0.0, 0.0, 0.0, 0.0, 1.0).finished();
         return err;
     }
@@ -363,9 +384,9 @@ int main(int argc, char **argv)
         auto polyPointNoise = gtsam::noiseModel::Diagonal::Sigmas(polyPointSigmas);
 
         gtsam::Vector po1(5), po2(5), poj(5) ;
-        po1 << -3.0, 3.0, 0.0, 0.0, 0.0;
-        poj << 0.0, 0.0, 0.0, 1.0, 0.0;
-        po2 << 3.0, -3.0, 0.0, 0.0, 0.0;
+        po1 << -3.0, 3.0, 0.0, 0.5, 0.0;
+        poj << 0.0, 0.0, 0.0, 0.5, 0.0;
+        po2 << 3.0, -3.0, 0.0, 0.5, 0.0;
         gtsam::Vector poPriorSigmas(5);
         poPriorSigmas << 0.0, 0.0, 0.0, 0.0, 0.0;
         auto priorPoNoise = gtsam::noiseModel::Diagonal::Sigmas(poPriorSigmas);
@@ -388,6 +409,7 @@ int main(int argc, char **argv)
         for(size_t j = 0; j < poses.size(); ++j) //add polynoaml<->point factors to the graph
         {
           graph.push_back(boost::make_shared<PolyPointFactor>(Symbol('l', 0), Symbol('p', j), polyParams, poses[j], polyPointNoise));
+          ROS_INFO_STREAM("key: "<< j <<"");
         }
         /*--------------------------------------------------------------------------------------------------------*/
 
@@ -407,8 +429,8 @@ int main(int argc, char **argv)
         /*--------------------------------------| obstacle  factor |----------------------------------------------*/
         auto circleNoise = noiseModel::Diagonal::Sigmas(Vector1(0.0));  // 10cm std on x,y
         gtsam::Vector circle0(3),circle1(3); //x, y, r
-        circle0 <<  -0.5, 0.6, 0.5;
-        circle1 << 2.0, 3.0, 0.8;
+        circle0 <<  0.5, 2.6, 0.5;
+        circle1 << 0.2, 0.0, 0.6;
         
         for(size_t j = 0; j < poses.size(); ++j) 
         {
@@ -423,13 +445,13 @@ int main(int argc, char **argv)
         Values initialEstimate;
         
         gtsam::Vector po0init(8);
-        po0init << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
-        //po0init << 0.001, 0.02, 0.0, 0.5, 0.0, 2.0, -1.0, 1.0;
+        //po0init << 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0; 
+        po0init << 0.0, 0.0, 0.0, 0.0, 0.1, 0.0, 0.0, 0.0;
         initialEstimate.insert(Symbol('l', 0), po0init);
 
         geometry_msgs::Point poisInit;
         gtsam::Vector po1init(5);
-        po1init << -3.1, 3.1, 0.0, 0.0, 0.0;
+        po1init << -3.1, 3.1, 0.0, 0.5, 0.0;
         poisInit.x = po1init[0];
         poisInit.y = po1init[1];
         pointsInit.points.push_back(poisInit);
@@ -520,3 +542,23 @@ int main(int argc, char **argv)
     return 0;
 }
 
+/*
+gtsam::Vector crvJp(7); 
+        crvJp = Vector::Zero(7);
+        crvJp[0] = (-0.6931471*ctrVal*(((21* pow(p5[0],6)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((42*pow(p5[0],5) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[0])) {crvJp[0] = 0.0;}
+        crvJp[1] = (-0.6931471*ctrVal*(((18* pow(p5[0],5)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((30*pow(p5[0],4) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[1])) {crvJp[1] = 0.0;}
+        crvJp[2] = (-0.6931471*ctrVal*(((15* pow(p5[0],4)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((20*pow(p5[0],3) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[2])) {crvJp[2] = 0.0;}
+        crvJp[3] = (-0.6931471*ctrVal*(((12* pow(p5[0],3)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((12*pow(p5[0],2) *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[3])) {crvJp[3] = 0.0;}
+        crvJp[4] = (-0.6931471*ctrVal*(((9*  pow(p5[0],2)* errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((6*      p5[0]   *  pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[4])) {crvJp[4] = 0.0;}
+        crvJp[5] = (-0.6931471*ctrVal*(((6*      p5[0]*    errYx*  sqrt( pow(errYx,2)  +1))/ abs(errY2x))  - ((2*                 pow( (pow(errYx,2)+1) ,1.5))  / (errY2x*abs(errY2x))  )))  / (pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[5])) {crvJp[5] = 0.0;}
+        crvJp[6] = (-0.6931471*ctrVal*   3*                errYx*  sqrt( pow(errYx,2)  +1))                                                                                     /(abs(errY2x)*pow(2,ctrVal*(p5[3] - curveMax)));
+        //if (isnan(crvJp[6])) {crvJp[6] = 0.0;}
+        */
+
+        
